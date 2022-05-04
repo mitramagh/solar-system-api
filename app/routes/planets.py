@@ -29,7 +29,14 @@ def create_new_planet():
 
 @planets_bp.route("", methods=["GET"])
 def get_all_planets():
-    planets = Planet.query.all()
+    params = request.args
+
+    if "name" in params:
+        planet_name =params["name"]
+        planets = Planet.query.filter_by(name=planet_name)
+    else:
+        planets = Planet.query.all()
+
     planets_response = []
     for planet in planets:
         planets_response.append({
@@ -41,17 +48,24 @@ def get_all_planets():
 
     return jsonify(planets_response), 200
 
-@planets_bp.route('<planet_id>', methods=['GET'])
-def get_one_planet(planet_id):
+def get_planet_or_abort(planet_id):
     try:
         planet_id = int(planet_id)
     except ValueError:
         rsp = {"message" : f"Invalid id: {planet_id}"}
-        return jsonify(rsp), 400
+        abort(make_response(jsonify(rsp), 400))
+
     chosen_planet = Planet.query.get(planet_id)
 
     if chosen_planet is None:
-        return {"message": f"planet {planet_id} is not found"}, 404
+        rsp= {"message": f"planet {planet_id} is not found"}
+        abort(make_response(jsonify(rsp), 404))
+    return chosen_planet
+
+@planets_bp.route('<planet_id>', methods=['GET'])
+def get_one_planet(planet_id):
+    
+    chosen_planet = get_planet_or_abort(planet_id)
 
     planet_response = {
         "id": chosen_planet.id,
@@ -64,16 +78,8 @@ def get_one_planet(planet_id):
 
 @planets_bp.route('/<planet_id>', methods=['PUT'])
 def update_planet(planet_id):
-    try:
-        planet_id = int(planet_id)
-    except ValueError:
-        rsp = {"message" : f"Invalid id: {planet_id}"}
-        return jsonify(rsp), 400
-    
-    chosen_planet = Planet.query.get(planet_id)
 
-    if chosen_planet is None:
-        return {"message": f"planet {planet_id} is not found"}, 404
+    chosen_planet = get_planet_or_abort(planet_id)
 
     request_body = request.get_json()
     try:
@@ -91,16 +97,8 @@ def update_planet(planet_id):
 
 @planets_bp.route("/<planet_id>", methods=['DELETE'])
 def delete_planet(planet_id):
-    try:
-        planet_id = int(planet_id)
-    except ValueError:
-        rsp = {"message" : f"Invalid id: {planet_id}"}
-        return jsonify(rsp), 400
-
-    chosen_planet = Planet.query.get(planet_id)
-
-    if chosen_planet is None:
-        return {"message": f"planet {planet_id} is not found"}, 404
+    
+    chosen_planet = get_planet_or_abort(planet_id)
 
     db.session.delete(chosen_planet)
     db.session.commit()
@@ -108,69 +106,3 @@ def delete_planet(planet_id):
     return {
         "message": f"planet #{planet_id} successfully deleted"
     }, 200
-
-# @cats_bp.route("/<cat_id>", methods=["DELETE"])
-# def delete_cat(cat_id):
-#     try:
-#         cat_id = int(cat_id)
-#     except ValueError:
-#         rsp = {"msg": f"Invalid id: {cat_id}"}
-#         return jsonify(rsp), 400
-    
-#     chosen_cat = Cat.query.get(cat_id)
-#     if chosen_cat is None:
-#         rsp = {"msg": f"Could not find cat with id {cat_id}"}
-#         return jsonify(rsp), 404
-
-#     db.session.delete(chosen_cat.id)
-#     db.session.commit()
-
-#     return {
-#         "msg": f"cat #{chosen_cat.id} successfully destroyed"
-#     }, 200
-
-
-
-
-
-# def validate_planet(planet_id):
-#     try:
-#         planet_id = int(planet_id)
-#     except:
-#         abort(make_response({"message":f"planet {planet_id} invalid"}, 400))
-#     for planet in planets:
-#         if planet.id == planet_id:
-#             return planet
-#     abort(make_response({"message":f"planet {planet_id} not found"}, 404))
-# @planets_bp.route("/<planet_id>", methods=["GET"])
-# def read_one_planet(planet_id):
-#     planet = validate_planet(planet_id)
-#     return jsonify(planet.to_json(), 200)
-
-
-
-
-# @planets_bp.route("/<planet_id>", methods=["GET"])
-# def get_one_planet(planet_id):
-#     try:
-#         planet_id = int(planet_id)
-#     except:
-#         abort(make_response({"msg": f"Planet {planet_id} is invalid"}, 400))
-
-#     chosen_planet = None
-#     for planet in planets:
-#         print(f"{planet_id}", type(planet.id))
-#         if planet.id == planet_id:
-#             chosen_planet = planet
-#             break
-#     if chosen_planet is None:
-#         rsp = {"msg": f"Planet {planet_id} is not found"}
-#         return jsonify(rsp), 404
-#     rsp = {
-#         "id": chosen_planet.id,
-#         "name": chosen_planet.name,
-#         "description":  chosen_planet.description,
-#         "distance_from_sun" : chosen_planet.distance_from_sun
-#     }
-#     return jsonify(rsp), 200
-
